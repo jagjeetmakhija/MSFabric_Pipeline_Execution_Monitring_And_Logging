@@ -6,7 +6,7 @@
 ---
 
 ## What Is This?
-The **Jagjeet Pipeline Operations Tracker** is a lightweight, self-installing monitoring framework for Microsoft Fabric. Upload one Python file to your notebook, run two lines of code, and you instantly get:
+The **Pipeline Operations Tracker** is a lightweight, self-installing monitoring framework for Microsoft Fabric. Upload one Python file to your notebook, run two lines of code, and you instantly get:
 
 - A **Lakehouse** with three Delta tables
 - A **Power BI Direct Lake semantic model** with relationships and 8 DAX measures
