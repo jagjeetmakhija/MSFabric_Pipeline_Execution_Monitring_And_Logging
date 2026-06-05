@@ -180,11 +180,11 @@ tracker = quick_test("MyProject")
 
 **What it creates:**
 ```
-[OK] INSERT   | customers | Δ+1,000 rows | 5.2s
-[OK] UPDATE   | orders    | Δ+100 rows   | 8.7s
-[OK] VALIDATE | products  | Δ0 rows      | 3.1s
-[OK] MERGE    | sales     | Δ+500 rows   | 12.4s
-[OK] DELETE   | inventory | Δ-50 rows    | 2.8s
+[OK] INSERT   | customers | +1,000 rows | 5.2s
+[OK] UPDATE   | orders    | +100 rows   | 8.7s
+[OK] VALIDATE | products  | 0 rows      | 3.1s
+[OK] MERGE    | sales     | +500 rows   | 12.4s
+[OK] DELETE   | inventory | -50 rows    | 2.8s
 
 Quick test complete
 ```
