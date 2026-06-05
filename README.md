@@ -1,7 +1,8 @@
-# MS Fabric pipeline execution monitring and logging
+# MS Fabric Pipeline Execution Monitoring and Logging
 
 ### A Self-Installing Pipeline Monitoring Framework for Microsoft Fabric
-** Built by Jagjeet Makhija· Microsoft Fabric + Power BI**
+**Built by Jagjeet Makhija · Microsoft Fabric + Power BI**
+
 ---
 
 ## What Is This?
@@ -12,6 +13,7 @@ The **Jagjeet Pipeline Operations Tracker** is a lightweight, self-installing mo
 - A single method call to log any pipeline run — success or failure
 
 No configuration files. No manual table creation. No separate Power BI setup. Everything is created automatically on first run.
+
 ---
 
 ## The Three Files
@@ -20,6 +22,7 @@ No configuration files. No manual table creation. No separate Power BI setup. Ev
 | `jagjeet_logging_utils.py` | **Core engine** — the only file required in production | Every notebook that needs tracking |
 | `jagjeet_test_data_creation.py` | Sample data generator — populates the framework with realistic dummy data | Once, during setup/testing |
 | `jagjeet_usage_examples.py` | 8 copy-paste usage patterns | Reference when building your own notebooks |
+
 ---
 
 ## What Gets Created
@@ -46,39 +49,45 @@ YOUR FABRIC WORKSPACE
 
 > **Smart behaviour:** If any of these already exist, they are preserved. Existing data is never overwritten unless you pass `force_recreate=True`.
 
+> **⚠️ Date range note:** The `date_dimension` table covers 4 years from the date of first setup. If your project runs longer than that, Power BI relationships to dates beyond that range will break. Run `tracker = JagjeetPipelineTracker("MyProject", force_recreate=True)` to rebuild with a fresh 4-year window — **this will delete all existing log data**.
+
 ---
 
 ## Prerequisites
+
+> **⚠️ You must have Contributor or Admin role** in your Microsoft Fabric workspace. A Viewer role does not have permission to create Lakehouses or Power BI semantic models — setup will fail.
+
 Before running anything, make sure you have:
 - [ ] A **Microsoft Fabric workspace** with Spark compute enabled
-- [ ] A **Fabric notebook** open and attached to a lakehouse (or let the framework create one)
+- [ ] **Contributor or Admin role** in that workspace
+- [ ] A **Fabric notebook** open and attached to a Spark session
 - [ ] The file `jagjeet_logging_utils.py` uploaded to your notebook's **Resources** folder
 
-> **Note:** `semantic-link-labs` (`jags_labs`) is installed automatically if missing — you do not need to pip install anything manually.
+> **Important:** This framework must run **inside a Fabric notebook**. It will not work locally (VS Code, Jupyter on your machine, etc.) because it requires `notebookutils` and Fabric's native authentication — both of which are only available inside the Fabric environment.
+
+> **Note:** `semantic-link-labs` (`sempy_labs`) is installed automatically if missing — you do not need to pip install anything manually.
 
 ---
 ---
 
 # EXECUTION GUIDE
+
 ---
 
 ## PHASE 1 — First-Time Setup
+
 ### Step 1 · Upload the core file
 Upload `jagjeet_logging_utils.py` to your Fabric notebook's **Resources** folder.
 ```
 Notebook → Resources (left panel) → Upload → jagjeet_logging_utils.py
 ```
 This is the **only file required for production**. The other two files are optional tools.
+
 ---
 
 ### Step 2 · Initialise the tracker
 In a new notebook cell, run:
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py  |  Class: JagjeetPipelineTracker
-# Lines: 58–142  |  Methods: __init__() + _setup()
-# ─────────────────────────────────────────────────────
-
 from builtin.jagjeet_logging_utils import JagjeetPipelineTracker
 tracker = JagjeetPipelineTracker("MyProject")
 ```
@@ -122,7 +131,10 @@ Tables:
 Ready. Use: tracker.track_pipeline_run(...)
 ============================================================
 ```
+
 > **Second run onwards:** If the lakehouse and tables already exist, the framework detects them and preserves all data. Setup takes only a few seconds on subsequent runs.
+
+> **Slow Spark startup:** On the very first run, Spark may take 1–3 minutes to initialise before the framework can create tables. If you see a timeout during table verification, simply re-run the cell — the framework will detect what already exists and continue.
 
 ---
 
@@ -130,11 +142,6 @@ Ready. Use: tracker.track_pipeline_run(...)
 Run a health check to confirm everything is working:
 
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: show_health_check()  |  Line: 470
-# ─────────────────────────────────────────────────────
-
 tracker.show_health_check()
 ```
 
@@ -156,6 +163,7 @@ JAGJEET PIPELINE TRACKER — HEALTH CHECK
   Power BI Model: EXISTS
 ============================================================
 ```
+
 ---
 ---
 
@@ -164,47 +172,35 @@ JAGJEET PIPELINE TRACKER — HEALTH CHECK
 
 ### Step 4 · Upload the test data file
 Upload `jagjeet_test_data_creation.py` to your notebook's **Resources** folder.
+
 ---
 
 ### Step 5 · Run a quick smoke test (5 entries)
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_test_data_creation.py
-# Function: quick_test()  |  Line: 158
-# Generates: 5 test entries to verify tracker is working
-# ─────────────────────────────────────────────────────
-
 from builtin.jagjeet_test_data_creation import quick_test
 tracker = quick_test("MyProject")
 ```
 
 **What it creates:**
 ```
-[OK] INSERT   | customers | +1,000 rows | 5.2s
-[OK] UPDATE   | orders    | +100 rows   | 8.7s
-[OK] VALIDATE | products  | 0 rows      | 3.1s
-[OK] MERGE    | sales     | +500 rows   | 12.4s
-[OK] DELETE   | inventory | -50 rows    | 2.8s
+[OK] INSERT   | customers | Δ+1,000 rows | 5.2s
+[OK] UPDATE   | orders    | Δ+100 rows   | 8.7s
+[OK] VALIDATE | products  | Δ0 rows      | 3.1s
+[OK] MERGE    | sales     | Δ+500 rows   | 12.4s
+[OK] DELETE   | inventory | Δ-50 rows    | 2.8s
 
 Quick test complete
 ```
+
 ---
 
 ### Step 6 · Run full test environment (optional — 80+ entries)
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_test_data_creation.py
-# Function: setup_complete_test_environment()  |  Line: 145
-# Generates:
-#   - 30 random runs across 8 notebooks / 10 tables    → create_test_data()        line 10
-#   - 4-stage daily ETL + quality + merge scenarios     → create_etl_pipeline_scenarios() line 76
-#   - 5 realistic failure cases                         → create_failure_scenarios() line 109
-#   - 20 performance benchmarks (4 sizes × 5 ops)      → create_performance_benchmarks() line 126
-# ─────────────────────────────────────────────────────
-
 from builtin.jagjeet_test_data_creation import setup_complete_test_environment
 tracker = setup_complete_test_environment("MyProject")
 ```
+
+> **Note:** If you run `setup_complete_test_environment` more than once, it will append additional test entries each time rather than overwriting. To start fresh, use `JagjeetPipelineTracker("MyProject", force_recreate=True)` first — **this deletes all existing data**.
 
 **What it creates:**
 | Function | What It Generates | Line |
@@ -218,14 +214,9 @@ tracker = setup_complete_test_environment("MyProject")
 ---
 
 ## PHASE 3 — Log Real Pipeline Runs
+
 ### Step 7 · Log a successful run
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: track_pipeline_run()  |  Line: 369
-# Reference: jagjeet_usage_examples.py  |  Example 1  |  Line: 14
-# ─────────────────────────────────────────────────────
-
 tracker.track_pipeline_run(
     notebook_name    = "DailyETL",           # which notebook ran
     table_name       = "sales_fact",         # which table was affected
@@ -246,13 +237,6 @@ tracker.track_pipeline_run(
 
 ### Step 8 · Log a failed run
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: track_pipeline_run()  |  Line: 369
-# Parameter: error_details  |  Line: 372
-# Reference: jagjeet_usage_examples.py  |  Example 1  |  Line: 20
-# ─────────────────────────────────────────────────────
-
 tracker.track_pipeline_run(
     notebook_name    = "DataValidation",
     table_name       = "orders",
@@ -270,16 +254,11 @@ tracker.track_pipeline_run(
   [FAILED] VALIDATE | orders | Δ-1,500 rows | 25.4s | 2025-09-15
 ```
 > When `error_details` is populated, the entry is marked **FAILED**. The Power BI measures **Failed Runs** and **Success Rate** pick this up automatically.
+
 ---
 
 ### Step 9 · Auto-time your functions with the decorator
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Function: measure_execution_time  |  Line: 500
-# Reference: jagjeet_usage_examples.py  |  Example 3  |  Line: 41
-# ─────────────────────────────────────────────────────
-
 from builtin.jagjeet_logging_utils import JagjeetPipelineTracker, measure_execution_time
 
 @measure_execution_time
@@ -302,16 +281,11 @@ tracker.track_pipeline_run(
     error_details    = error                     # None if successful
 )
 ```
+
 ---
 
 ### Step 10 · Backfill historical data
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Parameter: custom_timestamp  |  Line: 373
-# Reference: jagjeet_usage_examples.py  |  Example 2  |  Line: 29
-# ─────────────────────────────────────────────────────
-
 from datetime import datetime, timedelta
 
 for i in range(7):
@@ -329,16 +303,11 @@ for i in range(7):
 ```
 
 > Use `custom_timestamp` when deploying to an existing project that already has a history of pipeline runs you want to represent in Power BI.
+
 ---
 
 ### Step 11 · Track a multi-stage ETL pipeline
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_usage_examples.py
-# Function: run_etl_pipeline()  |  Line: 65
-# Pattern: Log each ETL stage separately with staged timestamps
-# ─────────────────────────────────────────────────────
-
 from datetime import datetime, timedelta
 pipeline_start = datetime.now()
 
@@ -366,16 +335,11 @@ tracker.track_pipeline_run(
     custom_timestamp=pipeline_start + timedelta(minutes=75)
 )
 ```
+
 ---
 
 ### Step 12 · Track a batch with mixed outcomes
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_usage_examples.py
-# Function: track_batch()  |  Line: 115
-# Pattern: Loop through tables, log each, then log a batch summary
-# ─────────────────────────────────────────────────────
-
 batch_start = datetime.now()
 batch_id    = f"BATCH_{batch_start.strftime('%Y%m%d_%H%M%S')}"
 
@@ -407,28 +371,21 @@ tracker.track_pipeline_run(
     custom_timestamp=batch_start + timedelta(hours=2)
 )
 ```
+
 ---
 ---
 
 ## PHASE 4 — Monitor and Maintain
+
 ### Step 13 · View recent runs
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: show_recent_runs()  |  Line: 401
-# Calls:  fetch_activity_logs()  |  Line: 394
-# ─────────────────────────────────────────────────────
 tracker.show_recent_runs(10)         # show last 10 runs
 ```
+
 ---
 
 ### Step 14 · Get summary statistics
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: show_summary_stats()  |  Line: 405
-# ─────────────────────────────────────────────────────
-
 tracker.show_summary_stats()
 ```
 
@@ -440,17 +397,11 @@ Pipeline Activity Summary:
   Unique Tables:      15
   Unique Operations:  7
 ```
+
 ---
 
 ### Step 15 · Query specific logs
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: fetch_activity_logs()  |  Line: 394
-# Reference: jagjeet_usage_examples.py  |  Example 4  |  Line: 57
-# Returns a Spark DataFrame — fully chainable
-# ─────────────────────────────────────────────────────
-
 # Filter by table
 df = tracker.fetch_activity_logs(table_name="sales_fact", limit=50)
 df.show()
@@ -464,56 +415,54 @@ df = tracker.fetch_activity_logs(limit=200)
 failures = df.filter(df.error_details.isNotNull())
 failures.show()
 ```
+
 ---
 
 ### Step 16 · Refresh the Power BI model
 Run this after adding new tables, changing schemas, or updating DAX measure definitions:
 
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: refresh_power_bi_model()  |  Line: 441
-# What it does:
-#   1. Re-authenticates with Fabric native token  → line 176
-#   2. Re-applies 2 relationships                 → line 305
-#   3. Re-applies / updates 8 DAX measures        → line 337
-#   4. Triggers dataset refresh                   → line 449
-# Reference: jagjeet_usage_examples.py  |  Example 8  |  Line: 145
-# ─────────────────────────────────────────────────────
 tracker.refresh_power_bi_model()
 ```
+
 ---
 
 ### Step 17 · Build the Power BI model manually (if setup was skipped)
 If the model was not created during initial setup (because tables weren't ready in time), run:
 
 ```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: build_power_bi_model()  |  Line: 456
-# Waits up to 5 minutes for all tables to be readable, then builds
-# ─────────────────────────────────────────────────────
 tracker.build_power_bi_model(max_wait_minutes=5)
 ```
+
 ---
 
 ### Step 18 · Clean up old records
-Run this on a schedule to keep the activity log lean:
-```python
-# ─────────────────────────────────────────────────────
-# FILE: jagjeet_logging_utils.py
-# Method: purge_old_records()  |  Line: 423
-# Uses Delta delete + vacuum(0) to physically remove old data
-# ─────────────────────────────────────────────────────
+Run this on a schedule to keep the activity log lean. The recommended approach is to call this from a **scheduled Fabric notebook** (set up via the notebook's scheduling feature in the Fabric workspace) or from inside a recurring Data Pipeline activity.
 
+```python
 tracker.purge_old_records(days_to_keep=90)    # delete anything older than 90 days
 ```
+
+**To schedule this automatically:**
+```
+Fabric Workspace → Open the notebook → Schedule → Add schedule → Set daily/weekly frequency
+```
+
 ---
 ---
 
 ## PHASE 5 — Power BI Reports
-After setup, open **SM_MyProject_Jagjeet_PipelineOps** in Power BI. The following measures are pre-built and ready to use:
-| Measure | Use In Report | DAX (jagjeet_logging_utils.py line 337) |
+
+After setup, your semantic model **SM_MyProject_Jagjeet_PipelineOps** is ready in your Fabric workspace. To build reports on top of it:
+
+1. Go to your **Fabric workspace**
+2. Find **SM_MyProject_Jagjeet_PipelineOps** (type: Semantic Model)
+3. Click **"Create report"** to open Power BI report builder
+4. The 8 pre-built DAX measures will appear in the Fields pane — drag them onto your canvas
+
+The following measures are pre-built and ready to use:
+
+| Measure | Use In Report | DAX |
 |---|---|---|
 | `Total Pipeline Runs` | KPI card | `COUNTROWS(pipeline_activity_log)` |
 | `Total Rows Processed` | KPI card | `SUM(rows_changed)` |
@@ -545,6 +494,7 @@ Page 4 — Activity Log
   └── Full table: all columns from pipeline_activity_log
       filtered by date_dimension and time_dimension
 ```
+
 ---
 ---
 
@@ -553,16 +503,20 @@ All methods below are in `jagjeet_logging_utils.py`.
 
 ### `JagjeetPipelineTracker(project_name, force_recreate, workspace_name)`
 **Line 58–77** — Class constructor. Triggers full setup sequence.
+
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `project_name` | str | required | Names the lakehouse and semantic model |
-| `force_recreate` | bool | `False` | If `True`, drops and rebuilds everything — **data is lost** |
+| `force_recreate` | bool | `False` | If `True`, drops and rebuilds everything — **all data is permanently deleted** |
 | `workspace_name` | str | `None` | Auto-detected if not provided |
+
+> **⚠️ WARNING — `force_recreate=True`:** This parameter **permanently deletes** your Lakehouse, all Delta tables, and the Power BI semantic model before rebuilding from scratch. All logged pipeline history will be lost. Only use this intentionally — never pass it by accident.
 
 ---
 
 ### `track_pipeline_run(...)`
 **Line 369** — Core logging method. Always appends, never overwrites.
+
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `notebook_name` | str | required | Which notebook ran |
@@ -600,69 +554,6 @@ All methods below are in `jagjeet_logging_utils.py`.
 ---
 ---
 
-## File Reference Map
-Every function, example and pattern in these files — with exact line numbers:
-
-### `jagjeet_logging_utils.py` — 511 lines
-```
-Line  14  →  ensure_package()                   Auto-install jags_labs if missing
-Line  37  →  LOG_SCHEMA                         Shared 13-column Delta schema
-Line  58  →  class JagjeetPipelineTracker       Main class
-Line  61  →    __init__()                        Constructor — set names, call _setup()
-Line  82  →    _date_dim_path (property)         Computed path for date_dimension table
-Line  86  →    _time_dim_path (property)         Computed path for time_dimension table
-Line  90  →    _setup()                          Bootstrap: workspace → lakehouse → tables → model
-Line 145  →    _delta_table_exists()             Check if Delta path is readable
-Line 152  →    _verify_all_tables_ready()        Poll until all 3 tables confirm readable
-Line 176  →    _authenticate_for_tom()           Get Fabric native token for TOM operations
-Line 187  →    _create_activity_log_table()      Create/preserve pipeline_activity_log
-Line 206  →    _create_date_dimension_table()    Create/extend 4-year date dimension
-Line 246  →    _create_time_dimension_table()    Create 1,440-slot time dimension
-Line 272  →    _power_bi_model_exists()          Check if SM already exists in workspace
-Line 279  →    _build_power_bi_model()           Build Direct Lake model → relationships → measures
-Line 305  →    _add_model_relationships()        Create 2 Many-to-One joins via TOM
-Line 337  →    _add_dax_measures()               Create/update 8 DAX measures via TOM
-Line 369  →    track_pipeline_run()              ★ Core public method — append one log row
-Line 394  →    fetch_activity_logs()             Return filtered Spark DataFrame
-Line 401  →    show_recent_runs()                Show last N runs
-Line 405  →    show_summary_stats()              Print aggregate counts
-Line 423  →    purge_old_records()               Delta delete + vacuum old records
-Line 441  →    refresh_power_bi_model()          Re-apply relationships + measures + refresh
-Line 456  →    build_power_bi_model()            Poll + build — safe to call any time
-Line 470  →    show_health_check()               Full framework status report
-Line 494  →  resolve_current_user()              Get current Fabric/system user
-Line 500  →  measure_execution_time()            ★ Decorator — auto-time any function
-```
----
-
-### `jagjeet_test_data_creation.py` — 180 lines
-```
-Line   5  →  import JagjeetPipelineTracker       Imports from jagjeet_logging_utils.py
-Line  10  →  create_test_data(tracker, 50)        50 random runs — 8 notebooks, 10 tables, 12 ops
-Line  76  →  create_etl_pipeline_scenarios()      4-stage ETL + quality failure + merge + backup
-Line 109  →  create_failure_scenarios()           5 failure types with realistic error messages
-Line 126  →  create_performance_benchmarks()      5 ops × 4 dataset sizes (1K → 10M rows)
-Line 145  →  setup_complete_test_environment()    ★ Master function — runs all 4 above
-Line 158  →  quick_test()                         ★ 5-entry smoke test — use this first
-```
----
-
-### `jagjeet_usage_examples.py` — 168 lines
-```
-Line   5  →  import JagjeetPipelineTracker        Imports from jagjeet_logging_utils.py
-Line  10  →  tracker = JagjeetPipelineTracker(...)  Initialise once
-Line  13  →  Example 1: Basic logging              Success and failure with error_details
-Line  28  →  Example 2: Historical backfill         custom_timestamp for past dates
-Line  40  →  Example 3: Auto-timing decorator       @measure_execution_time pattern
-Line  57  →  Example 4: Monitoring                  show_recent_runs, show_summary_stats, fetch_activity_logs
-Line  64  →  Example 5: Multi-stage ETL             3 stages with staged timestamps
-Line  86  →  Example 6: Failure + retry + recovery  Initial fail → 2 retries → success
-Line 114  →  Example 7: Batch processing            4 tables, 1 failure, batch summary entry
-Line 145  →  Example 8: Power BI model management   refresh_power_bi_model + TOM inspection
-```
----
----
-
 ## Execution Order Summary
 ```
 FIRST TIME
@@ -687,8 +578,9 @@ MONITOR
 
 MAINTAIN
   13. tracker.refresh_power_bi_model()          ← run after schema changes
-  14. tracker.purge_old_records(90)             ← run on a schedule
+  14. tracker.purge_old_records(90)             ← run on a schedule (set up scheduled notebook)
 ```
+
 ---
 ---
 
@@ -700,8 +592,10 @@ MAINTAIN
 | Create Power BI reports or dashboards | Only the semantic model is created — you build reports on top |
 | Run automatically on a schedule | Logging only happens when you call the method |
 | Connect to external monitoring tools | Self-contained, no third-party integrations |
+| Run outside Microsoft Fabric | Requires `notebookutils` and Fabric native auth — local environments not supported |
 
 ---
+
 ## Troubleshooting
 | Problem | Likely Cause | Fix |
 |---|---|---|
@@ -710,8 +604,12 @@ MAINTAIN
 | `TOM auth failed` | `notebookutils` not available | Must run inside a Fabric notebook, not locally |
 | `Model not found. Run build_power_bi_model() first` | Model was skipped or deleted | Run `tracker.build_power_bi_model()` |
 | `Refresh failed` | Fabric dataset refresh quota | Retry after a few minutes or refresh manually in Power BI |
+| Lakehouse not created / permission error | Insufficient workspace role | Ensure you have Contributor or Admin role in the workspace |
+| Setup times out on first run | Spark session cold start | Re-run the initialisation cell — framework will resume from where it stopped |
+| Duplicate test data after re-running setup | `setup_complete_test_environment` appends each time | Use `force_recreate=True` to reset, or filter duplicates in Power BI |
 
 ---
+
 ## Built By
-**Jagjeet Makhija** 
+**Jagjeet Makhija**
 `Microsoft Fabric` · `PySpark` · `Delta Lake` · `Power BI Direct Lake` · `TOM (Tabular Object Model)`
